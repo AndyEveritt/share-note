@@ -1,12 +1,12 @@
-import { Notice } from 'obsidian'
+import { Notice } from "obsidian";
 
-const pluginName = require('../manifest.json').name
+const pluginName = require("../manifest.json").name;
 
 export enum StatusType {
   Default,
   Info,
   Error,
-  Success
+  Success,
 }
 
 interface StatusAttributes {
@@ -16,41 +16,45 @@ interface StatusAttributes {
 
 const statuses: { [key: number]: StatusAttributes } = {
   [StatusType.Error]: {
-    class: 'share-note-status-error',
-    icon: '❌ '
+    class: "share-note-status-error",
+    icon: "❌ ",
   },
   [StatusType.Info]: {
-    class: 'share-note-status-info',
-    icon: ''
+    class: "share-note-status-info",
+    icon: "",
   },
   [StatusType.Success]: {
-    class: 'share-note-status-success',
-    icon: '✔ '
-  }
-}
+    class: "share-note-status-success",
+    icon: "✔ ",
+  },
+};
 
 export default class StatusMessage extends Notice {
-  messageEl: HTMLDivElement
-  icon: string
+  messageEl: HTMLDivElement;
+  icon: string;
 
-  constructor (text: string, type: StatusType = StatusType.Default, duration = 5000) {
-    const messageDoc = new DocumentFragment()
+  constructor(
+    text: string,
+    type: StatusType = StatusType.Default,
+    duration = 5000
+  ) {
+    const messageDoc = new DocumentFragment();
 
-    const icon = statuses[type]?.icon || ''
-    const messageEl = messageDoc.createEl('div', {
-      text: `${icon}${pluginName}: ${text}`
-    })
-    super(messageDoc, duration)
+    const icon = statuses[type]?.icon || "";
+    const messageEl = messageDoc.createEl("div", {
+      text: `${icon}${pluginName}: ${text}`,
+    });
+    super(messageDoc, duration);
     if (messageEl.parentElement) {
       if (statuses[type]) {
-        messageEl.parentElement.classList.add(statuses[type].class)
+        messageEl.parentElement.classList.add(statuses[type].class);
       }
     }
-    this.icon = icon
-    this.messageEl = messageEl
+    this.icon = icon;
+    this.messageEl = messageEl;
   }
 
-  setStatus (message: string) {
-    this.messageEl.innerText = `${this.icon}${pluginName}: ${message}`
+  setStatus(message: string) {
+    this.messageEl.innerText = `${this.icon}${pluginName}: ${message}`;
   }
 }
