@@ -95,7 +95,7 @@ export default class Note {
     return this.plugin.field(key);
   }
 
-  async share() {
+  async share(file: TFile | null, depth: number = 0) {
     if (!this.plugin.settings.apiKey) {
       this.plugin.authRedirect("share").then();
       return;
@@ -107,6 +107,25 @@ export default class Note {
       StatusType.Default,
       60 * 1000
     );
+
+    if (!(file instanceof TFile)) {
+      // No active file
+      this.status.hide();
+      new StatusMessage("There is no active file to share");
+      return;
+    }
+
+    console.log("Sharing note: ", file.basename);
+    await this.leaf.openFile(file);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    while (this.leaf?.view?.file !== file) {
+      // Wait for the file to load.
+      // Without this loop Obsidian seems to set the file then immediately switch back to the previous file.
+      // Except when adding a breakpoint to the code, then it works fine.
+      await this.leaf.openFile(file);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      console.log("Waiting for file ", file.name, " to open...");
+    }
 
     const startMode = this.leaf.getViewState();
     const previewMode = this.leaf.getViewState();
@@ -158,13 +177,6 @@ export default class Note {
     }, 200);
 
     this.status.setStatus("Processing note...");
-    const file = this.plugin.app.workspace.getActiveFile();
-    if (!(file instanceof TFile)) {
-      // No active file
-      this.status.hide();
-      new StatusMessage("There is no active file to share");
-      return;
-    }
     this.meta = this.plugin.app.metadataCache.getFileCache(file);
 
     // Generate the HTML file for uploading
@@ -236,14 +248,20 @@ export default class Note {
           ""
         );
         if (linkedFile instanceof TFile) {
+          let linkedFileShareLink = "";
+          if (depth < this.plugin.settings.recursive) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            const note = new Note(this.plugin);
+            linkedFileShareLink = await note.share(linkedFile, depth + 1);
+          }
           const linkedMeta =
             this.plugin.app.metadataCache.getFileCache(linkedFile);
-          if (linkedMeta?.frontmatter?.[this.field(YamlField.link)]) {
+          const link =
+            linkedMeta?.frontmatter?.[this.field(YamlField.link)] ||
+            linkedFileShareLink;
+          if (link) {
             // This file is shared, so update the link with the share URL
-            el.setAttribute(
-              "href",
-              linkedMeta.frontmatter[this.field(YamlField.link)]
-            );
+            el.setAttribute("href", link);
             el.removeAttribute("target");
             continue;
           }
@@ -367,6 +385,7 @@ export default class Note {
         file,
         (frontmatter) => {
           // Update the frontmatter with the share link
+          this.updateMetaCacheFrontmatter(YamlField.link, shareLink);
           frontmatter[this.field(YamlField.link)] = shareLink;
           frontmatter[this.field(YamlField.updated)] = moment().format();
         }
@@ -385,6 +404,8 @@ export default class Note {
 
     this.status.hide();
     new StatusMessage(shareMessage, StatusType.Success);
+    console.log("Share complete");
+    return shareLink;
   }
 
   /**
@@ -601,6 +622,17 @@ export default class Note {
    */
   getProperty(field: YamlField) {
     return this.meta?.frontmatter?.[this.plugin.field(field)];
+  }
+
+  /**
+   * Set the value of a frontmatter property
+   * **/
+  updateMetaCacheFrontmatter(field: YamlField, value: string) {
+    const frontmatter = this.meta?.frontmatter;
+    if (!frontmatter) {
+      return;
+    }
+    frontmatter[this.plugin.field(field)] = value;
   }
 
   /**

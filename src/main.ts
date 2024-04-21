@@ -1,4 +1,4 @@
-import { Plugin, setIcon, TFile } from "obsidian";
+import { Plugin, moment, setIcon, TFile } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   ShareSettings,
@@ -174,7 +174,15 @@ export default class SharePlugin extends Plugin {
         note.forceClipboard();
       }
       try {
-        await note.share();
+        const file = this.app.workspace.getActiveFile();
+        if (!(file instanceof TFile)) {
+          // No active file
+          note.status.hide();
+          new StatusMessage("There is no active file to share");
+          return;
+        }
+        await note.share(file);
+        await note.leaf.openFile(file);
       } catch (e) {
         // Known errors are outputted by api.js
         if (e.message !== "Known error") {
@@ -224,8 +232,10 @@ export default class SharePlugin extends Plugin {
             sharedFile.file,
             (frontmatter) => {
               // Remove the shared link
-              delete frontmatter[this.field(YamlField.link)];
-              delete frontmatter[this.field(YamlField.updated)];
+              // There is a bug in the api where if all the fields of `frontmatter` are removed then no change is made.
+              // https://github.com/obsidianmd/obsidian-api/issues/164
+              frontmatter[this.field(YamlField.link)] = "";
+              frontmatter[this.field(YamlField.updated)] = moment().format();
             }
           );
         }

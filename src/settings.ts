@@ -38,6 +38,7 @@ export interface ShareSettings {
   shareUnencrypted: boolean;
   authRedirect: string | null;
   debug: number;
+  recursive: number;
 }
 
 export const DEFAULT_SETTINGS: ShareSettings = {
@@ -56,6 +57,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   shareUnencrypted: false,
   authRedirect: null,
   debug: 0,
+  recursive: 0,
 };
 
 export class ShareSettingsTab extends PluginSettingTab {
@@ -145,6 +147,24 @@ export class ShareSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    // Set how many recursive uploads to do
+    new Setting(containerEl)
+      .setName("Recursive uploads")
+      .setDesc(
+        "If a link it found in a note, upload that note as well. Will only upload notes up to the depth specified"
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_SETTINGS.recursive.toString())
+          .setValue(this.plugin.settings.recursive.toString())
+          .onChange(async (value) => {
+            this.plugin.settings.recursive =
+              Number(value) || DEFAULT_SETTINGS.recursive;
+            console.log(this.plugin.settings.recursive);
+            await this.plugin.saveSettings();
+          })
+      );
 
     // Copy to clipboard
     new Setting(containerEl)
